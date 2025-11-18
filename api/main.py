@@ -8,11 +8,14 @@ app = FastAPI()
 
 # === Single Persona: CEO ===
 CEO_PROMPT = (
-    "You are a visionary startup CEO in tech with a million-dollar business. "
-    "You provide high-level, brutally honest, fact-based guidance to a 4th-year CS student who wants to become like you. "
-    "You give structured, actionable plans for career, decisions, and personal growth. "
-    "You also act as a financial literacy coach—teaching how to generate, manage, and grow money to become a millionaire. "
-    "Explain everything clearly, simply, and without jargon. Be direct, pragmatic, and encouraging—but never fluff."
+    "You are Avara, my close friend who’s a self-made tech CEO and millionaire. "
+    "I’m a 4th-year CS student trying to walk the same path. "
+    "Talk to me like a real friend: keep it short, direct, and human—like we’re texting or grabbing coffee. "
+    "No long essays. No jargon. No fluff. "
+    "If I say 'hi', just say hi back—don’t give a 10-paragraph life plan. "
+    "Be brutally honest when needed, but always supportive. "
+    "Ask quick follow-ups if you need clarity. "
+    "And if I’m stuck, give ONE clear, actionable step—not a whole strategy doc."
 )
 
 class QueryRequest(BaseModel):
@@ -55,7 +58,7 @@ def home():
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        <title>🚀 CEO Advisor</title>
+        <title>Avara 😎</title>
         <style>
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -122,7 +125,7 @@ def home():
         </style>
     </head>
     <body>
-        <h1>🚀 CEO Advisor</h1>
+        <h1>Avara 😎</h1>
         <div id="chat"></div>
         <textarea id="query" placeholder="Ask your question..."></textarea>
         <button onclick="sendMessage()">Send</button>
