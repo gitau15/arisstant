@@ -58,90 +58,158 @@ def home():
         <title>🚀 CEO Advisor</title>
         <style>
             body {
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 max-width: 700px;
-                margin: 30px auto;
+                margin: 20px auto;
                 padding: 0 15px;
-                background: #fffaf7;
-                color: #1c1917;
+                background: #f0f9ff;
+                color: #1e40af;
             }
-            h1 { color: #9a3412; }
+            h1 { 
+                color: #1d4ed8; 
+                text-align: center;
+                margin-bottom: 10px;
+            }
+            #chat { 
+                height: 400px; 
+                overflow-y: auto; 
+                border: 1px solid #bfdbfe; 
+                padding: 15px; 
+                margin: 15px 0; 
+                border-radius: 10px; 
+                background: white;
+            }
+            .message { margin-bottom: 15px; line-height: 1.5; }
+            .user { text-align: right; color: #1e40af; }
+            .ceo { 
+                text-align: left; 
+                background: #eff6ff; 
+                padding: 10px; 
+                border-radius: 8px; 
+                border-left: 3px solid #3b82f6;
+            }
             textarea {
                 width: 100%;
-                height: 100px;
-                padding: 14px;
-                margin: 12px 0;
-                border: 1px solid #d6d3d1;
-                border-radius: 10px;
+                height: 80px;
+                padding: 12px;
+                margin: 10px 0;
+                border: 1px solid #93c5fd;
+                border-radius: 8px;
                 font-size: 16px;
                 resize: vertical;
             }
             button {
-                background: #ea580c;
+                background: #2563eb;
                 color: white;
                 border: none;
-                padding: 14px 28px;
-                font-size: 17px;
-                border-radius: 8px;
+                padding: 12px 24px;
+                font-size: 16px;
+                border-radius: 6px;
                 cursor: pointer;
+                display: block;
+                margin: 0 auto;
             }
             button:disabled {
-                background: #f97316;
+                background: #60a5fa;
                 cursor: not-allowed;
             }
-            .response {
-                margin-top: 25px;
-                padding: 20px;
-                background: white;
-                border-radius: 12px;
-                border-left: 4px solid #f97316;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            }
             .loading {
-                color: #c2410c;
+                color: #1e40af;
                 font-style: italic;
+                text-align: center;
+                padding: 10px;
             }
         </style>
     </head>
     <body>
         <h1>🚀 CEO Advisor</h1>
-        <p>Ask your question. Get direct, actionable advice from a self-made tech CEO.</p>
-        <textarea id="query" placeholder="e.g., How do I turn my side project into income as a CS student?"></textarea><br>
-        <button onclick="ask()">Get CEO Advice</button>
-        <div id="result"></div>
+        <div id="chat"></div>
+        <textarea id="query" placeholder="Ask your question..."></textarea>
+        <button onclick="sendMessage()">Send</button>
 
         <script>
-        async function ask() {
-            const input = document.getElementById("query");
-            const btn = document.querySelector("button");
-            const result = document.getElementById("result");
+        // Load chat history from localStorage
+        let chatHistory = JSON.parse(localStorage.getItem('ceoChat')) || [];
+
+        function renderChat() {
+            const chatDiv = document.getElementById('chat');
+            chatDiv.innerHTML = '';
+            chatHistory.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'message ' + (msg.role === 'user' ? 'user' : 'ceo');
+                div.innerHTML = `<strong>${msg.role === 'user' ? 'You' : 'CEO'}:</strong> ${msg.content.replace(/\n/g, '<br>')}`;
+                chatDiv.appendChild(div);
+            });
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('query');
             const msg = input.value.trim();
             if (!msg) return;
 
-            btn.disabled = true;
-            btn.textContent = "Thinking...";
-            result.innerHTML = '<p class="loading">CEO is crafting your strategy...</p>';
+            // Add user message
+            chatHistory.push({ role: 'user', content: msg });
+            renderChat();
+            input.value = '';
+            input.disabled = true;
+            document.querySelector('button').disabled = true;
+
+            // Show loading
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ceo loading';
+            loadingDiv.textContent = 'CEO is thinking...';
+            document.getElementById('chat').appendChild(loadingDiv);
+            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
 
             try {
-                const res = await fetch("/advice", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                // Prepare full message history for GLM (system + chat)
+                const payload = {
+                    user_message: msg,
+                    history: chatHistory.slice(0, -1) // exclude current user msg
+                };
+
+                const response = await fetch('/advice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_message: msg })
                 });
-                const data = await res.json();
-                if (data.error) {
-                    result.innerHTML = `<p style="color:#dc2626">Error: ${data.error}</p>`;
-                } else {
-                    const reply = data.ceo.replace(/\n/g, "<br>");
-                    result.innerHTML = `<div class="response"><strong>CEO says:</strong><br><br>${reply}</div>`;
-                }
+
+                const data = await response.json();
+                const ceoReply = data.error ? `⚠️ Error: ${data.error}` : data.ceo;
+
+                // Remove loading
+                document.getElementById('chat').removeChild(loadingDiv);
+
+                // Add CEO reply
+                chatHistory.push({ role: 'ceo', content: ceoReply });
+                localStorage.setItem('ceoChat', JSON.stringify(chatHistory));
+                renderChat();
+
             } catch (e) {
-                result.innerHTML = `<p style="color:#dc2626">Network error: ${e.message}</p>`;
+                // Remove loading
+                document.getElementById('chat').removeChild(loadingDiv);
+                const errDiv = document.createElement('div');
+                errDiv.className = 'message ceo';
+                errDiv.innerHTML = `<strong>CEO:</strong> 🛑 Network error: ${e.message}`;
+                document.getElementById('chat').appendChild(errDiv);
             } finally {
-                btn.disabled = false;
-                btn.textContent = "Get CEO Advice";
+                input.disabled = false;
+                document.querySelector('button').disabled = false;
+                input.focus();
             }
         }
+
+        // Allow Enter key to send (Shift+Enter for newline)
+        document.getElementById('query').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Initial render
+        renderChat();
         </script>
     </body>
     </html>
