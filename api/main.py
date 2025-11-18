@@ -137,7 +137,7 @@ def home():
             chatHistory.forEach(msg => {
                 const div = document.createElement('div');
                 div.className = 'message ' + (msg.role === 'user' ? 'user' : 'ceo');
-                div.innerHTML = `<strong>${msg.role === 'user' ? 'You' : 'CEO'}:</strong> ${msg.content.replace(/\n/g, '<br>')}`;
+                div.innerHTML = `<strong>${msg.role === 'user' ? 'You' : 'CEO'}:</strong> ${msg.content.replace(/\\n/g, '<br>')}`;
                 chatDiv.appendChild(div);
             });
             chatDiv.scrollTop = chatDiv.scrollHeight;
