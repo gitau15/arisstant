@@ -73,14 +73,22 @@ def home():
                 text-align: center;
                 margin-bottom: 10px;
             }
+            .input-area {
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 2px 6px rgba(30, 64, 175, 0.1);
+                margin-bottom: 20px;
+            }
             .input-group {
-                margin: 10px 0;
+                margin: 12px 0;
             }
             label {
                 display: block;
-                margin-bottom: 4px;
+                margin-bottom: 5px;
                 font-weight: 600;
                 color: #3b82f6;
+                font-size: 14px;
             }
             input, textarea {
                 width: 100%;
@@ -102,60 +110,79 @@ def home():
                 border-radius: 6px;
                 cursor: pointer;
                 display: block;
-                margin: 15px auto 10px;
+                margin: 15px auto 5px;
             }
             button:disabled {
                 background: #60a5fa;
                 cursor: not-allowed;
             }
-            #chat {
+            #history-toggle {
+                background: #dbeafe;
+                color: #1e40af;
+                margin: 10px auto;
+                display: block;
+            }
+            #chat-history {
+                display: none;
                 border: 1px solid #bfdbfe;
                 padding: 15px;
-                margin: 15px 0;
                 border-radius: 10px;
                 background: white;
-                min-height: 300px;
+                margin-top: 10px;
             }
             .topic-header {
-                margin-top: 20px;
-                padding-top: 15px;
-                border-top: 2px solid #dbeafe;
+                margin-top: 18px;
+                padding-top: 12px;
+                border-top: 1px dashed #cbd5e1;
                 color: #1d4ed8;
                 font-weight: 700;
+                font-size: 15px;
             }
             .message {
-                margin: 10px 0;
-                padding: 8px 0;
+                margin: 8px 0;
+                padding: 6px 0;
                 line-height: 1.5;
+                font-size: 14px;
             }
-            .user { text-align: right; color: #1e40af; font-weight: 500; }
+            .user { text-align: right; color: #1e40af; }
             .ceo {
                 background: #eff6ff;
-                padding: 10px;
-                border-radius: 8px;
-                border-left: 3px solid #3b82f6;
+                padding: 8px;
+                border-radius: 6px;
+                border-left: 2px solid #3b82f6;
             }
             .loading {
                 color: #1e40af;
                 font-style: italic;
+                text-align: center;
+                padding: 8px;
             }
         </style>
     </head>
     <body>
         <h1>Avara 😎</h1>
-        <div class="input-group">
-            <label for="topic">Topic (e.g., Career, Finances, Side Project)</label>
-            <input type="text" id="topic" placeholder="Choose a topic for this chat" value="General">
+        
+        <div class="input-area">
+            <div class="input-group">
+                <label for="topic">Topic (e.g., Career, Money, Side Project)</label>
+                <input type="text" id="topic" placeholder="General" value="General">
+            </div>
+            <div class="input-group">
+                <label for="query">Your message</label>
+                <textarea id="query" placeholder="Hey, quick question..."></textarea>
+            </div>
+            <button onclick="sendMessage()">Send</button>
+            <button id="history-toggle" onclick="toggleHistory()">📁 View History</button>
         </div>
-        <div class="input-group">
-            <label for="query">Your message</label>
-            <textarea id="query" placeholder="Hey, I need advice about..."></textarea>
-        </div>
-        <button onclick="sendMessage()">Send</button>
-        <div id="chat"></div>
+
+        <div id="chat-history"></div>
 
         <script>
-        let chatHistory = JSON.parse(localStorage.getItem('ceoChat')) || [];
+        let chatHistory = JSON.parse(localStorage.getItem('ceoChat')) || false;
+
+        function saveHistory() {
+            localStorage.setItem('ceoChat', JSON.stringify(chatHistory));
+        }
 
         function groupByTopic(messages) {
             const groups = {};
@@ -167,73 +194,85 @@ def home():
             return groups;
         }
 
-        function renderChat() {
-            const chatDiv = document.getElementById('chat');
+        function renderHistory() {
+            const div = document.getElementById('chat-history');
+            if (!chatHistory || chatHistory.length === 0) {
+                div.innerHTML = '<p style="text-align:center;color:#94a3b8">No past chats</p>';
+                return;
+            }
             const groups = groupByTopic(chatHistory);
-            chatDiv.innerHTML = '';
-
+            let html = '';
             for (const [topic, msgs] of Object.entries(groups)) {
-                const topicEl = document.createElement('div');
-                topicEl.className = 'topic-header';
-                topicEl.textContent = `📌 ${topic}`;
-                chatDiv.appendChild(topicEl);
-
+                html += `<div class="topic-header">📌 ${topic}</div>`;
                 msgs.forEach(msg => {
-                    const msgEl = document.createElement('div');
-                    msgEl.className = 'message ' + (msg.role === 'user' ? 'user' : 'ceo');
                     const sender = msg.role === 'user' ? 'You' : 'CEO';
-                    msgEl.innerHTML = `<strong>${sender}:</strong> ${msg.content.split('\\n').join('<br>')}`;
-                    chatDiv.appendChild(msgEl);
+                    const cls = msg.role === 'user' ? 'user' : 'ceo';
+                    const content = msg.content.split('\\n').join('<br>');
+                    html += `<div class="message ${cls}"><strong>${sender}:</strong> ${content}</div>`;
                 });
             }
-            chatDiv.scrollTop = chatDiv.scrollHeight;
+            div.innerHTML = html;
+        }
+
+        function toggleHistory() {
+            const div = document.getElementById('chat-history');
+            const btn = document.getElementById('history-toggle');
+            if (div.style.display === 'block') {
+                div.style.display = 'none';
+                btn.textContent = '📁 View History';
+            } else {
+                renderHistory();
+                div.style.display = 'block';
+                btn.textContent = '⏫ Hide History';
+            }
         }
 
         async function sendMessage() {
-            const topicInput = document.getElementById('topic');
-            const queryInput = document.getElementById('query');
-            const topic = topicInput.value.trim() || 'General';
-            const message = queryInput.value.trim();
-            if (!message) return;
+            const topic = document.getElementById('topic').value.trim() || 'General';
+            const msg = document.getElementById('query').value.trim();
+            if (!msg) return;
 
-            // Add user message with topic
-            chatHistory.push({ role: 'user', content: message, topic });
-            renderChat();
-            queryInput.value = '';
-            queryInput.disabled = true;
-            topicInput.disabled = true;
-            document.querySelector('button').disabled = true;
+            // Init history if first time
+            if (!Array.isArray(chatHistory)) chatHistory = [];
 
-            // Loading indicator
-            const loadingEl = document.createElement('div');
-            loadingEl.className = 'message ceo loading';
-            loadingEl.textContent = '🤔💭';
-            document.getElementById('chat').appendChild(loadingEl);
+            // Add user message
+            chatHistory.push({ role: 'user', content: msg, topic });
+            saveHistory();
+
+            // Reset input
+            document.getElementById('query').value = '';
+            document.querySelector('.input-area button').disabled = true;
+
+            // Show loading in history (if open)
+            if (document.getElementById('chat-history').style.display === 'block') {
+                document.getElementById('chat-history').innerHTML += 
+                    '<div class="message ceo loading">🤔💭</div>';
+            }
 
             try {
                 const res = await fetch('/advice', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_message: message })
+                    body: JSON.stringify({ user_message: msg })
                 });
                 const data = await res.json();
                 const reply = data.error ? `⚠️ ${data.error}` : data.ceo;
 
-                // Add CEO reply with same topic
                 chatHistory.push({ role: 'ceo', content: reply, topic });
-                localStorage.setItem('ceoChat', JSON.stringify(chatHistory));
-                renderChat();
+                saveHistory();
 
+                // Update history if visible
+                if (document.getElementById('chat-history').style.display === 'block') {
+                    renderHistory();
+                }
             } catch (e) {
-                const errEl = document.createElement('div');
-                errEl.className = 'message ceo';
-                errEl.innerHTML = `<strong>Avara:</strong> 🛑 Network error: ${e.message}`;
-                document.getElementById('chat').replaceChild(errEl, loadingEl);
+                if (document.getElementById('chat-history').style.display === 'block') {
+                    const err = `<div class="message ceo"><strong>CEO:</strong> 🛑 ${e.message}</div>`;
+                    document.getElementById('chat-history').innerHTML += err;
+                }
             } finally {
-                queryInput.disabled = false;
-                topicInput.disabled = false;
-                document.querySelector('button').disabled = false;
-                queryInput.focus();
+                document.querySelector('.input-area button').disabled = false;
+                document.getElementById('query').focus();
             }
         }
 
@@ -243,8 +282,6 @@ def home():
                 sendMessage();
             }
         });
-
-        renderChat();
         </script>
     </body>
     </html>
