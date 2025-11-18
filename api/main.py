@@ -48,7 +48,7 @@ async def get_ceo_advice(req: QueryRequest):
             reply = data["choices"][0]["message"]["content"].strip()
             return {"ceo": reply}
         except Exception as e:
-            return {"error": f"CEO is unavailable: {str(e)}"}
+            return {"error": f"Avara is unavailable: {str(e)}"}
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -73,32 +73,24 @@ def home():
                 text-align: center;
                 margin-bottom: 10px;
             }
-            #chat { 
-                height: 400px; 
-                overflow-y: auto; 
-                border: 1px solid #bfdbfe; 
-                padding: 15px; 
-                margin: 15px 0; 
-                border-radius: 10px; 
-                background: white;
+            .input-group {
+                margin: 10px 0;
             }
-            .message { margin-bottom: 15px; line-height: 1.5; }
-            .user { text-align: right; color: #1e40af; }
-            .ceo { 
-                text-align: left; 
-                background: #eff6ff; 
-                padding: 10px; 
-                border-radius: 8px; 
-                border-left: 3px solid #3b82f6;
+            label {
+                display: block;
+                margin-bottom: 4px;
+                font-weight: 600;
+                color: #3b82f6;
+            }
+            input, textarea {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #93c5fd;
+                border-radius: 6px;
+                font-size: 15px;
             }
             textarea {
-                width: 100%;
-                height: 80px;
-                padding: 12px;
-                margin: 10px 0;
-                border: 1px solid #93c5fd;
-                border-radius: 8px;
-                font-size: 16px;
+                height: 70px;
                 resize: vertical;
             }
             button {
@@ -110,100 +102,141 @@ def home():
                 border-radius: 6px;
                 cursor: pointer;
                 display: block;
-                margin: 0 auto;
+                margin: 15px auto 10px;
             }
             button:disabled {
                 background: #60a5fa;
                 cursor: not-allowed;
             }
+            #chat {
+                border: 1px solid #bfdbfe;
+                padding: 15px;
+                margin: 15px 0;
+                border-radius: 10px;
+                background: white;
+                min-height: 300px;
+            }
+            .topic-header {
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 2px solid #dbeafe;
+                color: #1d4ed8;
+                font-weight: 700;
+            }
+            .message {
+                margin: 10px 0;
+                padding: 8px 0;
+                line-height: 1.5;
+            }
+            .user { text-align: right; color: #1e40af; font-weight: 500; }
+            .ceo {
+                background: #eff6ff;
+                padding: 10px;
+                border-radius: 8px;
+                border-left: 3px solid #3b82f6;
+            }
             .loading {
                 color: #1e40af;
                 font-style: italic;
-                text-align: center;
-                padding: 10px;
             }
         </style>
     </head>
     <body>
         <h1>Avara 😎</h1>
-        <div id="chat"></div>
-        <textarea id="query" placeholder="Ask your question..."></textarea>
+        <div class="input-group">
+            <label for="topic">Topic (e.g., Career, Finances, Side Project)</label>
+            <input type="text" id="topic" placeholder="Choose a topic for this chat" value="General">
+        </div>
+        <div class="input-group">
+            <label for="query">Your message</label>
+            <textarea id="query" placeholder="Hey, I need advice about..."></textarea>
+        </div>
         <button onclick="sendMessage()">Send</button>
+        <div id="chat"></div>
 
         <script>
-        // Load chat history from localStorage
         let chatHistory = JSON.parse(localStorage.getItem('ceoChat')) || [];
+
+        function groupByTopic(messages) {
+            const groups = {};
+            messages.forEach(msg => {
+                const t = msg.topic || 'General';
+                if (!groups[t]) groups[t] = [];
+                groups[t].push(msg);
+            });
+            return groups;
+        }
 
         function renderChat() {
             const chatDiv = document.getElementById('chat');
+            const groups = groupByTopic(chatHistory);
             chatDiv.innerHTML = '';
-            chatHistory.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'message ' + (msg.role === 'user' ? 'user' : 'ceo');
-                div.innerHTML = `<strong>${msg.role === 'user' ? 'You' : 'CEO'}:</strong> ${msg.content.replace(/\\n/g, '<br>')}`;
-                chatDiv.appendChild(div);
-            });
+
+            for (const [topic, msgs] of Object.entries(groups)) {
+                const topicEl = document.createElement('div');
+                topicEl.className = 'topic-header';
+                topicEl.textContent = `📌 ${topic}`;
+                chatDiv.appendChild(topicEl);
+
+                msgs.forEach(msg => {
+                    const msgEl = document.createElement('div');
+                    msgEl.className = 'message ' + (msg.role === 'user' ? 'user' : 'ceo');
+                    const sender = msg.role === 'user' ? 'You' : 'CEO';
+                    msgEl.innerHTML = `<strong>${sender}:</strong> ${msg.content.split('\\n').join('<br>')}`;
+                    chatDiv.appendChild(msgEl);
+                });
+            }
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
 
         async function sendMessage() {
-            const input = document.getElementById('query');
-            const msg = input.value.trim();
-            if (!msg) return;
+            const topicInput = document.getElementById('topic');
+            const queryInput = document.getElementById('query');
+            const topic = topicInput.value.trim() || 'General';
+            const message = queryInput.value.trim();
+            if (!message) return;
 
-            // Add user message
-            chatHistory.push({ role: 'user', content: msg });
+            // Add user message with topic
+            chatHistory.push({ role: 'user', content: message, topic });
             renderChat();
-            input.value = '';
-            input.disabled = true;
+            queryInput.value = '';
+            queryInput.disabled = true;
+            topicInput.disabled = true;
             document.querySelector('button').disabled = true;
 
-            // Show loading
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message ceo loading';
-            loadingDiv.textContent = 'CEO is thinking...';
-            document.getElementById('chat').appendChild(loadingDiv);
-            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+            // Loading indicator
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'message ceo loading';
+            loadingEl.textContent = '🤔💭';
+            document.getElementById('chat').appendChild(loadingEl);
 
             try {
-                // Prepare full message history for GLM (system + chat)
-                const payload = {
-                    user_message: msg,
-                    history: chatHistory.slice(0, -1) // exclude current user msg
-                };
-
-                const response = await fetch('/advice', {
+                const res = await fetch('/advice', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_message: msg })
+                    body: JSON.stringify({ user_message: message })
                 });
+                const data = await res.json();
+                const reply = data.error ? `⚠️ ${data.error}` : data.ceo;
 
-                const data = await response.json();
-                const ceoReply = data.error ? `⚠️ Error: ${data.error}` : data.ceo;
-
-                // Remove loading
-                document.getElementById('chat').removeChild(loadingDiv);
-
-                // Add CEO reply
-                chatHistory.push({ role: 'ceo', content: ceoReply });
+                // Add CEO reply with same topic
+                chatHistory.push({ role: 'ceo', content: reply, topic });
                 localStorage.setItem('ceoChat', JSON.stringify(chatHistory));
                 renderChat();
 
             } catch (e) {
-                // Remove loading
-                document.getElementById('chat').removeChild(loadingDiv);
-                const errDiv = document.createElement('div');
-                errDiv.className = 'message ceo';
-                errDiv.innerHTML = `<strong>CEO:</strong> 🛑 Network error: ${e.message}`;
-                document.getElementById('chat').appendChild(errDiv);
+                const errEl = document.createElement('div');
+                errEl.className = 'message ceo';
+                errEl.innerHTML = `<strong>Avara:</strong> 🛑 Network error: ${e.message}`;
+                document.getElementById('chat').replaceChild(errEl, loadingEl);
             } finally {
-                input.disabled = false;
+                queryInput.disabled = false;
+                topicInput.disabled = false;
                 document.querySelector('button').disabled = false;
-                input.focus();
+                queryInput.focus();
             }
         }
 
-        // Allow Enter key to send (Shift+Enter for newline)
         document.getElementById('query').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -211,7 +244,6 @@ def home():
             }
         });
 
-        // Initial render
         renderChat();
         </script>
     </body>
